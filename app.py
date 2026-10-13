@@ -5,7 +5,7 @@ RRE-F | لوحة القيادة الاستباقية للرأي العام
 
 التشغيل:
     pip install streamlit pandas numpy openpyxl
-    streamlit run rre_f_app.py
+    streamlit run app.py
 """
 
 import copy
@@ -28,8 +28,17 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .stApp, [data-testid="stSidebar"] { direction: rtl; text-align: right; }
-    [data-testid="stMetricValue"], [data-testid="stMetricLabel"] { direction: rtl; }
+    /* الاتجاه العربي على المحتوى فقط، لا على حاويات التخطيط (حتى لا ينكسر الشريط الجانبي على الجوال) */
+    .block-container, [data-testid="stMainBlockContainer"], [data-testid="stSidebarUserContent"] {
+        direction: rtl; text-align: right;
+    }
+    [data-testid="stMetricValue"] { font-size: 1.9rem; direction: rtl; }
+    [data-testid="stMetricLabel"] { direction: rtl; }
+    @media (max-width: 640px) {
+        .main-title { font-size: 21px; }
+        .sub-title  { font-size: 14px; }
+        [data-testid="stMetricValue"] { font-size: 1.6rem; }
+    }
     .main-title { font-size: 28px; font-weight: 700; color: #1E3A8A; margin-bottom: 0; }
     .sub-title  { font-size: 16px; color: #4B5563; margin-bottom: 20px; }
     </style>
@@ -213,12 +222,13 @@ def friction_from_mean(mean_stance: float) -> float:
     return float(np.clip((1.0 - mean_stance) * 50.0, 0.0, 100.0))
 
 
-def classify(friction: float) -> str:
+def classify(friction: float) -> tuple:
+    """يعيد (تسمية قصيرة للمؤشر، وصف تفصيلي)."""
     if friction > 65:
-        return "حرج - أزمة متوقعة"
+        return "🔴 حرج", "أزمة متوقعة"
     if friction > 40:
-        return "متوسط - يتطلب تعديل السرد"
-    return "آمن"
+        return "🟠 متوسط", "يتطلب تعديل السرد"
+    return "🟢 آمن", "ضمن النطاق الآمن"
 
 
 @st.cache_data(show_spinner=False)
@@ -370,7 +380,8 @@ else:
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("معامل المقاومة العام", f"{friction}%",
           delta=f"{amplification:+} بعد التأثير الاجتماعي", delta_color="inverse")
-c2.metric("حالة الاستقرار السردي", classify(friction))
+status_label, status_desc = classify(friction)
+c2.metric("حالة الاستقرار السردي", status_label, help=status_desc)
 c3.metric("نسبة المعارضين", f"{res['oppose_share']}%")
 c4.metric("درجة الاستقطاب", res["polarization"],
           help="الانحراف المعياري للمواقف: كلما ارتفع زاد انقسام الرأي.")
